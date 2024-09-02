@@ -57,20 +57,22 @@ def server(input, output, session):
             repo_response = http.request('GET', f"https://api.github.com/repos/{owner_repo}/git/trees/main?recursive=1")
             if repo_response.status != 200:
                 ui.notification_show(f"Error: Unable to fetch repository structure. Status code: {repo_response.status}")
-            try:
-                repo_data_decoded = repo_response.data.decode('utf-8')
-            except AttributeError:
-                repo_data_decoded = repo_response.data
+            # try:
+            #     repo_data_decoded = repo_response.data.decode('utf-8')
+            # except AttributeError:
+            #     repo_data_decoded = repo_response.data
+            repo_data_decoded = repo_response.data
             repo_data = json.loads(repo_data_decoded)
             files_info = []
             for file in repo_data.get('tree', []):
                 if file['type'] == 'blob':
                     file_content_response = http.request('GET', f"https://raw.githubusercontent.com/{owner_repo}/main/{file['path']}")
                     if file_content_response.status == 200:
-                        try:
-                            file_content_response_decoded = file_content_response.data.decode('utf-8')
-                        except AttributeError:
-                            file_content_response_decoded = file_content_response.data
+                        # try:
+                        #     file_content_response_decoded = file_content_response.data.decode('utf-8')
+                        # except AttributeError:
+                        #     file_content_response_decoded = file_content_response.data
+                        file_content_response_decoded = file_content_response.data
                         files_info.append({
                             'path': file['path'],
                             'content': file_content_response_decoded
