@@ -1,3 +1,5 @@
 shiny
 urllib3
 pillow
+OpenAI
+html

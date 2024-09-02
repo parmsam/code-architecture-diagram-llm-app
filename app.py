@@ -1,96 +1,116 @@
 from shiny import App, ui, render, reactive
 import urllib3
 import json
-import base64
-from io import BytesIO
-from PIL import Image
+from openai import OpenAI
+import html
+
+try:
+    from setup import api_key1
+except ImportError:
+    api_key1 = ""
+
+example_repo_url = "https://github.com/parmsam/yt-dl-pipeline"
 
 app_ui = ui.page_fluid(
+    ui.tags.head(
+        ui.tags.script(src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"),
+        ui.tags.script("""
+            function renderMermaid() {
+                mermaid.initialize({startOnLoad: false});
+                mermaid.run();
+            }
+        """)
+    ),
     ui.h1("GitHub Repository Architecture Diagram Generator"),
     ui.layout_sidebar(
         ui.sidebar(
-            ui.input_text("repo_url", "GitHub Repository URL", placeholder="https://github.com/username/repo"),
-            ui.input_password("api_key", "OpenAI API Key"),
+            ui.input_text(
+                "repo_url", 
+                "GitHub Repository URL", 
+                placeholder="https://github.com/username/repo",
+                value=example_repo_url),
+            ui.input_password("api_key", "OpenAI API Key", value=api_key1),
             ui.input_action_button("generate", "Generate Diagram"),
+            open="always",
         ),
-        ui.output_ui("diagram"),
-        ui.output_text("error_message"),
-    )
+        ui.output_ui("mermaid_output"),
+        ui.output_code("diagram"),
+    ),
 )
 
 def server(input, output, session):
+    mermaid_code = reactive.Value("")
     http = urllib3.PoolManager()
 
-    @reactive.Calc
-    def generate_diagram():
-        if not input.repo_url() or not input.api_key():
-            return None
-
+    @reactive.Effect
+    @reactive.event(input.generate)
+    def _():
+        if not input.api_key():
+            ui.notification_show("Please enter your OpenAI API key.", type="error")
+        if not input.repo_url():
+            ui.notification_show("Please enter a GitHub repository URL.", type="error") 
         repo_url = input.repo_url()
         api_key = input.api_key()
-
-        # Fetch repository structure
+        owner_repo = repo_url.replace("https://github.com/", "")
+        # Fetch repository structure and files using GitHub API
         try:
-            response = http.request('GET', f"{repo_url}/archive/refs/heads/main.zip")
-            if response.status != 200:
-                return f"Error: Unable to fetch repository. Status code: {response.status}"
+            # headers = {'User-Agent': 'Mozilla/5.0'}
+            repo_response = http.request('GET', f"https://api.github.com/repos/{owner_repo}/git/trees/main?recursive=1", headers=headers)
+            if repo_response.status != 200:
+                ui.notification_show(f"Error: Unable to fetch repository structure. Status code: {repo_response.status}")
+            repo_data = json.loads(repo_response.data.decode('utf-8'))
+            files_info = []
+            for file in repo_data.get('tree', []):
+                if file['type'] == 'blob':
+                    file_content_response = http.request('GET', f"https://raw.githubusercontent.com/{owner_repo}/main/{file['path']}", headers=headers)
+                    if file_content_response.status == 200:
+                        files_info.append({
+                            'path': file['path'],
+                            'content': file_content_response.data.decode('utf-8')
+                        })
         except Exception as e:
-            return f"Error: {str(e)}"
-
+            ui.notification_show(f"Error: {str(e)}", type="error")
         # Generate diagram using OpenAI API
+        client = OpenAI(api_key=api_key)
         try:
-            openai_url = "https://api.openai.com/v1/chat/completions"
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            }
-            data = {
-                "model": "gpt-3.5-turbo",
-                "messages": [
-                    {"role": "system", "content": "You are an AI that generates architecture diagrams based on GitHub repository structures."},
-                    {"role": "user", "content": f"Generate a PlantUML diagram for the architecture of the repository at {repo_url}. Focus on the main components and their relationships."}
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an AI that generates Mermaid diagrams based on GitHub repository structures."},
+                    {"role": "user", "content": f"""Generate a Mermaid diagram for the architecture of the repository at {repo_url}. 
+                     - Focus on the main components and their relationships. 
+                     - Just include the mermaid chart code. 
+                     - Don't include the triple backticks (like ```mermaid ```). Just give me the code. 
+                     - Ensure it is compliant with mermaid syntax.""",},
+                    {"role": "user", "content": f"Repository structure:\n{json.dumps(files_info, indent=2)}"}
                 ]
-            }
-            response = http.request('POST', openai_url, body=json.dumps(data).encode('utf-8'), headers=headers)
-            
-            if response.status != 200:
-                return f"Error: OpenAI API request failed. Status code: {response.status}"
-            
-            response_data = json.loads(response.data.decode('utf-8'))
-            plantuml_diagram = response_data['choices'][0]['message']['content']
-
-            # Generate image from PlantUML
-            plantuml_url = f"http://www.plantuml.com/plantuml/png/{base64.b64encode(plantuml_diagram.encode('utf-8')).decode('utf-8')}"
-            img_response = http.request('GET', plantuml_url)
-            
-            if img_response.status != 200:
-                return f"Error: Unable to generate diagram image. Status code: {img_response.status}"
-            
-            img = Image.open(BytesIO(img_response.data))
-            buf = BytesIO()
-            img.save(buf, format="PNG")
-            img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-            
-            return f'<img src="data:image/png;base64,{img_base64}" alt="Architecture Diagram" style="max-width: 100%;">'
+            )
+            response_data = response.choices[0].message.content
+            mermaid_code.set(response_data)
         except Exception as e:
-            return f"Error: {str(e)}"
-
+            ui.notification_show(f"Error: {str(e)}", type="error")
+        
     @output
     @render.ui
     @reactive.event(input.generate)
-    def diagram():
-        result = generate_diagram()
-        if result and result.startswith('<img'):
-            return ui.HTML(result)
-        return ui.HTML("")
-
+    def mermaid_output():
+        response = mermaid_code()
+        if not response:
+            return ""
+        mermaid_html = ui.HTML(f"""
+            <div class="mermaid">
+                {response}
+            </div>
+            <script>
+                renderMermaid();
+            </script>
+        """)
+        return mermaid_html
+    
     @output
-    @render.text
-    @reactive.event(input.generate)
-    def error_message():
-        result = generate_diagram()
-        if result and not result.startswith('<img'):
-            return result
-        return ""
+    @render.code
+    def diagram():
+        result = mermaid_code()
+        return result if result else "No diagram generated."
 
 app = App(app_ui, server)
