@@ -54,15 +54,14 @@ def server(input, output, session):
         owner_repo = repo_url.replace("https://github.com/", "")
         # Fetch repository structure and files using GitHub API
         try:
-            # headers = {'User-Agent': 'Mozilla/5.0'}
-            repo_response = http.request('GET', f"https://api.github.com/repos/{owner_repo}/git/trees/main?recursive=1", headers=headers)
+            repo_response = http.request('GET', f"https://api.github.com/repos/{owner_repo}/git/trees/main?recursive=1")
             if repo_response.status != 200:
                 ui.notification_show(f"Error: Unable to fetch repository structure. Status code: {repo_response.status}")
             repo_data = json.loads(repo_response.data.decode('utf-8'))
             files_info = []
             for file in repo_data.get('tree', []):
                 if file['type'] == 'blob':
-                    file_content_response = http.request('GET', f"https://raw.githubusercontent.com/{owner_repo}/main/{file['path']}", headers=headers)
+                    file_content_response = http.request('GET', f"https://raw.githubusercontent.com/{owner_repo}/main/{file['path']}")
                     if file_content_response.status == 200:
                         files_info.append({
                             'path': file['path'],
