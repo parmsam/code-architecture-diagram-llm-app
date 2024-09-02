@@ -2,5 +2,3 @@ shiny
 urllib3
 pillow
 OpenAI
-html
-json
