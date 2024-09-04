@@ -12,9 +12,20 @@ except ImportError:
     
 example_repo_url = "https://github.com/parmsam/yt-dl-pipeline"
 
+app_info = """
+This app creates a code architecture diagram in Mermaid based on a GitHub 
+repository using OpenAI's GPT-4o-mini model.
+"""
+mermaid_chart_options = [
+    "graph", "flowchart", "sequenceDiagram", "gantt", 
+    "classDiagram", "mindmap",
+]
+
 app_ui = ui.page_fluid(
     ui.tags.head(
-        ui.tags.script(src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"),
+        ui.tags.script(
+            src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"
+        ),
         ui.tags.script("""
             function renderMermaid() {
                 mermaid.initialize({startOnLoad: false});
@@ -34,14 +45,13 @@ app_ui = ui.page_fluid(
             ui.input_select(
                 "mermaid_chart_type", 
                 "Mermaid Chart Type", 
-                choices=[
-                    "graph", "flowchart", "sequenceDiagram", "gantt", "classDiagram", "mindmap",
-                ],
+                choices=mermaid_chart_options,
                 selected="graph",
                 ),
             ui.input_action_button("generate", "Generate Diagram"),
             open="always",
         ),
+        ui.markdown(app_info),
         ui.output_ui("mermaid_output"),
         ui.output_code("diagram"),
     ),
