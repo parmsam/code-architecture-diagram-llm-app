@@ -74,7 +74,8 @@ def server(input, output, session):
         owner_repo = repo_url.replace("https://github.com/", "")
         # Fetch repository structure and files using GitHub API
         try:
-            repo_response = http.request('GET', f"https://api.github.com/repos/{owner_repo}/git/trees/main?recursive=1")
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            repo_response = http.request('GET', f"https://api.github.com/repos/{owner_repo}/git/trees/main?recursive=1", headers=headers)
             if repo_response.status != 200:
                 ui.notification_show(f"Error: Unable to fetch repository structure. Status code: {repo_response.status}")
             try:
