@@ -3,12 +3,13 @@ import urllib3
 import json
 from openai import OpenAI
 import html
+import os
 
 try:
     from setup import api_key1
 except ImportError:
-    api_key1 = ""
-
+    api_key1 = os.getenv("OPENAI_API_KEY")
+    
 example_repo_url = "https://github.com/parmsam/yt-dl-pipeline"
 
 app_ui = ui.page_fluid(
