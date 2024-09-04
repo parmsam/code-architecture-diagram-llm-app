@@ -50,7 +50,7 @@ app_ui = ui.page_fluid(
             ),
             ui.panel_conditional(
                 "input.source === 'file upload'", 
-                ui.input_file("file1", "Upload Code File")
+                ui.input_file("file1", "Upload Code File", multiple=False),
             ),
             ui.input_password("api_key", "OpenAI API Key", value=api_key1),
             ui.input_select(
