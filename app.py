@@ -31,6 +31,14 @@ app_ui = ui.page_fluid(
                 placeholder="https://github.com/username/repo",
                 value=example_repo_url),
             ui.input_password("api_key", "OpenAI API Key", value=api_key1),
+            ui.input_select(
+                "mermaid_chart_type", 
+                "Mermaid Chart Type", 
+                choices=[
+                    "graph", "flowchart", "sequenceDiagram", "gantt", "classDiagram", "mindmap",
+                ],
+                selected="graph",
+                ),
             ui.input_action_button("generate", "Generate Diagram"),
             open="always",
         ),
@@ -52,6 +60,7 @@ def server(input, output, session):
             ui.notification_show("Please enter a GitHub repository URL.", type="error") 
         repo_url = input.repo_url()
         api_key = input.api_key()
+        mermaid_chart_type = input.mermaid_chart_type()
         owner_repo = repo_url.replace("https://github.com/", "")
         # Fetch repository structure and files using GitHub API
         try:
@@ -89,7 +98,7 @@ def server(input, output, session):
                      - Focus on the main components and their relationships. 
                      - Just include the mermaid chart code. 
                      - Don't include the triple backticks (like ```mermaid ```). Just give me the code. 
-                     - Ensure it is compliant with mermaid syntax rules.""",},
+                     - Ensure it is compliant with mermaid syntax rules and is a {mermaid_chart_type} mermaid chart.""",},
                     {"role": "user", "content": f"Repository structure:\n{json.dumps(files_info, indent=2)}"}
                 ]
             )
