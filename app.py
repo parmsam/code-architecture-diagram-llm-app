@@ -15,12 +15,13 @@ except ImportError:
 example_repo_url = "https://github.com/parmsam/yt-dl-pipeline"
 
 app_info = """
-This app creates a code architecture diagram in Mermaid based on a GitHub 
-repository using OpenAI's GPT-4o-mini model.
+This app creates a code architecture diagram in Mermaid based on an uploaded 
+file or GitHub repository using OpenAI's GPT-4o-mini model.
 """
 mermaid_chart_options = [
-    "graph", "flowchart", "sequenceDiagram", "gantt", 
-    "classDiagram", "mindmap",
+    "graph", "flowchart", "sequenceDiagram",
+    "erDiagram",  "classDiagram", "mindmap",
+    "stateDiagram",
 ]
 
 app_ui = ui.page_fluid(
@@ -35,7 +36,7 @@ app_ui = ui.page_fluid(
             }
         """)
     ),
-    ui.h1("GitHub Repository Architecture Diagram Generator"),
+    ui.h1("Code Architecture Diagram Generator"),
     ui.layout_sidebar(
         ui.sidebar(
             ui.input_radio_buttons("source", None, ["file upload", "repo url"], inline=True),
@@ -130,12 +131,12 @@ def server(input, output, session):
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are an AI that generates Mermaid diagrams based on GitHub repository structures."},
-                    {"role": "user", "content": f"""Generate a Mermaid diagram for the architecture of a code repository. 
+                    {"role": "user", "content": f"""Generate a Mermaid diagram for the architecture of a code repository or individual code file. 
                      - Focus on the main components and their relationships. 
                      - Just include the mermaid chart code. 
                      - Don't include the triple backticks (like ```mermaid ```). Just give me the code. 
                      - Ensure it is compliant with mermaid syntax rules and is a {mermaid_chart_type} mermaid chart.""",},
-                    {"role": "user", "content": f"Repository structure:\n{source_code}"}
+                    {"role": "user", "content": f"Code:\n{source_code}"}
                 ]
             )
             response_data = response.choices[0].message.content
