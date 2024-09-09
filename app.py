@@ -66,6 +66,16 @@ app_ui = ui.page_fluid(
         ui.markdown(app_info),
         ui.output_ui("mermaid_output"),
         ui.output_code("diagram"),
+        ui.input_action_button("copy", "Copy to Clipboard", class_="btn-primary"),
+        ui.tags.script(
+            """
+            $(function() {
+                Shiny.addCustomMessageHandler("copy_to_clipboard", function(message) {
+                    navigator.clipboard.writeText(message.text);
+                });
+            });
+            """
+        ),
     ),
 )
 
@@ -166,5 +176,18 @@ def server(input, output, session):
     def diagram():
         result = mermaid_code()
         return result if result else "No diagram generated."
+    
+    @reactive.effect
+    @reactive.event(input.copy)
+    async def _():
+        if mermaid_code.get() != "":
+            ui.notification_show("Text copied to clipboard!", duration=3)
+            await session.send_custom_message(
+                "copy_to_clipboard", 
+                {"text": mermaid_code.get()}
+            )
+        else:
+            ui.notification_show("No text to copy!", type="warning", duration=3)
+
 
 app = App(app_ui, server)
